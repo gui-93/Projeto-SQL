@@ -1,0 +1,92 @@
+# Projeto-SQL
+Um projeto pessoal sobre os tipos de poluições nos paises.
+
+## 1- Quais poluentes foram considerados na pesquisa?
+SELECT DISTINCT(pollutant)
+FROM projetosql.TB_GLOBAL_QUALIDADE_AR;
+
+ ### TIPOS DE POLUENTES ###
+	POLUENTE PM10 - As partículas PM10 são partículas sólidas ou líquidas de diversas composições e tamanhos (poeira, cinzas, fuligem, partículas metálicas, cimento ou pólen) que estão dispersas na atmosfera e têm um diâmetro aerodinâmico inferior a 10 µm.
+	POLUENTE NO2 - O dióxido de nitrogênio (NO 2 ) é um poluente gerado principalmente pela queima de combustíveis em veículos, usinas de energia e instalações industriais.
+
+	POLUENTE PM25 - PM 2,5 , ou poluição atmosférica de partículas finas,vem de usinas elétricas que queimam carvão e outros combustíveis fósseis, emissões de veículos, emissões industriais e muitas outras fontes humanas e naturais. 
+
+	POLUENTE O3 - A poluição por ozônio é uma poluição atmosférica prejudicial que ocorre quando o óxido de nitrogênio e os compostos orgânicos voláteis liberados por veículos movidos a combustíveis fósseis interagem com a luz solar ultravioleta na superfície do planeta. 
+
+	POLUENTE SO2 - Dióxido de enxofre (SO 2 ) é um poluente gasoso do ar composto de enxofre e oxigênio. O SO 2 se forma quando combustível contendo enxofre, como carvão, óleo de petróleo ou diesel, é queimado. O gás dióxido de enxofre também pode mudar quimicamente para partículas de sulfato na atmosfera, uma parte importante da poluição de partículas finas, que pode ser levada a centenas de quilômetros de distância
+
+	POLUENTE CO - O CO é um gás incolor e inodoro que pode ser prejudicial quando inalado em grandes quantidades. O CO é liberado quando algo é queimado. As maiores fontes de CO para o ar externo são carros, caminhões e outros veículos ou máquinas que queimam combustíveis fósseis. Uma variedade de itens em sua casa, como querosene sem ventilação e aquecedores a gás, chaminés e fornalhas com vazamento e fogões a gás também liberam CO e podem afetar a qualidade do ar em ambientes fechados.
+
+	POLUENTE BC - O carbono negro é um dos poluentes mais antigos da História, com impacto devastador na saúde, no clima e nos ecossistemas. O carbono negro ou fuligem é formado durante a combustão incompleta de biomassa (madeira, resíduos verdes) ou de combustíveis fósseis (carvão, petróleo, gás).
+
+
+## 2- Qual foi a média de poluição ao longo do tempo provocada pelo poluente ground-level ozone (o3)?
+SELECT country AS pais,
+       CAST(timestamp AS DATE) AS data_coleta,
+       ROUND(AVG(value) OVER(PARTITION BY country ORDER BY CAST(timestamp AS DATE)), 2) AS media_valor_poluicao
+FROM projetosql.TB_GLOBAL_QUALIDADE_AR
+WHERE pollutant = 'o3'
+ORDER BY country, data_coleta;
+
+## 3- Qual foi a média de poluição causada pelo poluente ground-level ozone (o3) por país medida em µg/m³ (microgramas por metro cúbico)?
+SELECT country AS pais, 
+       ROUND(AVG(value),2) AS media_poluicao
+FROM projetosql.TB_GLOBAL_QUALIDADE_AR
+WHERE pollutant = 'o3'
+AND unit = 'µg/m³'
+GROUP BY country
+ORDER BY media_poluicao ASC;
+
+## 4- Considerando o resultado anterior, qual país teve maior índice de poluição geral por o3 ? 
+
+SELECT country AS pais, 
+       ROUND(AVG(value),2) AS media_poluicao, 
+       STDDEV(value) AS desvio_padrao, 
+       MAX(value) AS valor_maximo, 
+       MIN(value) AS valor_minimo
+FROM projetosql.TB_GLOBAL_QUALIDADE_AR
+WHERE pollutant = 'o3'
+AND unit = 'µg/m³'
+AND country IN ('IT', 'ES') 
+GROUP BY country
+ORDER BY media_poluicao ASC;
+
+### De acordo com o resultado desta query, a italia tem a maior media de poluição entretando ela tem uma dispersão menor em relação a media porque o desvio padrão é menor que os resultados da espanha, observei que relação ao valor maximo e minimo a uma grande descrepacia na espanha que alias comprova variabilidade e uma dispersão bem menor para italia. Então para responder a pergunta nº 4 precisamos acrescentar mais uma estatistica. 
+### O Coeficiente de Variação (CV) é uma medida estatística da dispersão dos dados em uma série de dados em torno da média. 
+### O Coeficiente de Variação representa a razão entre o desvio padrão e a média e é uma estatística útil para comparar o grau 
+### de variação de uma série de dados para outra, mesmo que as médias sejam drasticamente diferentes umas das outras.
+### Quanto maior o Coeficiente de Variação , maior o nível de dispersão em torno da média, logo, maior variabilidade.
+### O Coeficiente de Variação é calculado da seguinte forma: CV = (Desvio Padrão / Média) * 100
+
+SELECT country AS pais, 
+       ROUND(AVG(value),2) AS media_poluicao, 
+       STDDEV(value) AS desvio_padrao, 
+       MAX(value) AS valor_maximo, 
+       MIN(value) AS valor_minimo,
+       (STDDEV(value) / ROUND(AVG(value),2)) * 100 AS cv
+FROM projetosql.TB_GLOBAL_QUALIDADE_AR
+WHERE pollutant = 'o3'
+AND unit = 'µg/m³'
+AND country IN ('IT', 'ES') 
+GROUP BY country
+ORDER BY media_poluicao ASC;
+
+### Conclusão: Embora o CV da Espanha seja muito maior, a média da Itália é muito alta, com os pontos de dados mais próximos da média.
+### Os 2 países tem um alto índice de poluição geral por o3
+### A Itália apresenta maior índice de poluição geral, pois a média é alta e os pontos de dados estão mais próximos da média.
+
+## 5- Quais localidades e países tiveram média de poluição em 2020 superior a 100 µg/m³ para o poluente fine particulate matter (pm25)?
+SELECT COALESCE(location, "Total") AS localidade,
+	COALESCE(country, "Total") AS pais, 
+       ROUND(AVG(value), 2) AS media_poluicao
+FROM projetosql.TB_GLOBAL_QUALIDADE_AR
+WHERE pollutant = 'pm25'
+AND YEAR(timestamp) = 2020
+GROUP BY location, country WITH ROLLUP
+HAVING media_poluicao > 100
+ORDER BY location, country;
+
+## Conclusão
+### A Itália foi o país que apresentou o maior índice geral de poluição pelo poluente o3. Embora a Espanha tenha maior dispersão dos dados, a Itália tem uma média mais alta e a maioria dos pontos de dados em torno da média.
+### Entre as localidades com maior média de poluição pelo poluente pm25, duas ficam na Índia.
+
