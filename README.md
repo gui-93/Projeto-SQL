@@ -1,2 +1,4 @@
 # Projeto-SQL
-Um projeto pessoal sobre a poluiçao nos paises. 
+Um projeto pessoal sobre os tipos de poluições nos paises.
+
+
